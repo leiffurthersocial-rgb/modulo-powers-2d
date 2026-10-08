@@ -65,7 +65,7 @@ export class Prop extends Entity {
         const rr = r * rand(0.8, 1.05);
         verts.push({ x: Math.cos(a) * rr, y: Math.sin(a) * rr });
       }
-      this.body = Bodies.fromVertices(o.x, o.y, [verts], common as any);
+      this.body = Bodies.fromVertices(o.x, o.y, [convexHull(verts)], common as any);
       // fromVertices recentres; capture local verts relative to body position
       this.local = this.body.vertices.map((v) => ({ x: v.x - this.body.position.x, y: v.y - this.body.position.y }));
       this.shape = 'poly';
@@ -335,6 +335,17 @@ export class Prop extends Entity {
       ctx.restore();
     }
   }
+}
+
+/** monotone-chain convex hull (Matter needs convex vertices without poly-decomp) */
+function convexHull(pts: Vec[]): Vec[] {
+  const p = pts.slice().sort((a, b) => a.x - b.x || a.y - b.y);
+  const cross = (o: Vec, a: Vec, b: Vec) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+  const lower: Vec[] = [], upper: Vec[] = [];
+  for (const q of p) { while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], q) <= 0) lower.pop(); lower.push(q); }
+  for (let i = p.length - 1; i >= 0; i--) { const q = p[i]; while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], q) <= 0) upper.pop(); upper.push(q); }
+  upper.pop(); lower.pop();
+  return lower.concat(upper);
 }
 
 export function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {

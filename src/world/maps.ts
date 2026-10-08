@@ -88,7 +88,7 @@ const yard: MapDef = {
     g.lighting.zones.push({ x: 164, y: GY - 216, w: 246, h: 216, light: -0.45 });
     g.spawnProp({ kind: 'crate', x: 260, y: GY - 22, w: 40, h: 40 });
     // breakable wall
-    g.addBlock(new Block(2340, GY - 170, 30, 170, 'wall'));
+    g.addBlock(new Block(3240, GY - 170, 30, 170, 'wall'));
     // floating log on the pool
     g.spawnProp({ kind: 'log', x: 1900, y: GY, w: 120, h: 18 });
     g.spawnProp({ kind: 'crate', x: 2100, y: GY - 10, w: 40, h: 40 });

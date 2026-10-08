@@ -84,6 +84,8 @@ class TidalWave implements Effect {
   }
   drawGlow(ctx: CanvasRenderingContext2D) {
     const h = 110 * Math.min(1, this.t * 4) * (this.t > 1.4 ? Math.max(0, (1.8 - this.t) / 0.4) : 1);
+    ctx.globalAlpha = 0.22;
+    this.draw(ctx);
     ctx.globalAlpha = 0.6;
     ctx.strokeStyle = 'rgb(180,235,255)';
     ctx.lineWidth = 3;

@@ -85,6 +85,7 @@ export class Game {
   noise = { x: 0, y: 0, r: 0, t: 0 };
   toast = { text: '', t: 0 };
   private bodiesCache: MBody[] = [];
+  perf = { step: 0, render: 0 };
 
   constructor(canvas: HTMLCanvasElement) {
     setGame(this);
@@ -111,12 +112,13 @@ export class Game {
     particles.solid = this.terrain.solidAt;
     this.loadMap(0);
     this.loop = new Loop({
-      step: (dt) => this.step(dt),
-      render: (alpha, dt) => this.render(alpha, dt),
+      step: (dt) => { const t0 = performance.now(); this.step(dt); this.perf.step += (performance.now() - t0 - this.perf.step) * 0.05; },
+      render: (alpha, dt) => { const t0 = performance.now(); this.render(alpha, dt); this.perf.render += (performance.now() - t0 - this.perf.render) * 0.05; },
       frame: (dt) => this.frame(dt),
     });
     (window as any).__game = this;
     (window as any).__fps = () => Math.round(1000 / this.loop.frameMs);
+    (window as any).__perf = () => ({ step: +this.perf.step.toFixed(2), render: +this.perf.render.toFixed(2), particles: particles.count, bodies: this.bodiesCache.length, entities: this.entities.length });
   }
 
   start() { this.loop.start(); }

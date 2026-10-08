@@ -272,7 +272,7 @@ export class ShadowPower extends Power {
     const p = pl.body.plugin as any; p.px = spot.x; p.py = spot.y;
     pl.phasing = false;
     pl.body.collisionFilter.mask = 0xffff;
-    setVel(pl.body, (dx / d) * 700, (dy / d) * 700 - 300);
+    setVel(pl.body, (dx / d) * 260, -320);
     pl.hurt(30, 'blunt');
     G.cam.shake(0.8);
     G.flash(0.45, [255, 40, 80]);

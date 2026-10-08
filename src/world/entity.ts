@@ -97,7 +97,7 @@ export abstract class Entity {
     }
     if (this.frozen > 0) { this.frozen = Math.max(0, this.frozen - amount * 2); return; }
     this.heat += amount;
-    if (this.flammable && this.heat >= 1 && this.burning <= 0 && this.fuel > 0) {
+    if ((this.flammable || this.mat === 'flesh') && this.heat >= 1 && this.burning <= 0 && this.fuel > 0) {
       this.burning = 0.4;
       const c = this.center();
       audio.fireWhoosh(c.x, c.y, 0.3);

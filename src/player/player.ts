@@ -275,6 +275,21 @@ export class Player {
         vy = Math.min(vy, 1250);
       }
     }
+    // step-up assist: walk onto low ledges (<= 30px) instead of getting stuck
+    if (this.grounded && dir !== 0 && !this.swimming && this.locked <= 0) {
+      const T = G.terrain;
+      const fx = this.x + dir * (P_W / 2 + 3), fy = this.feetY;
+      if (T.solidAt(fx, fy - 4)) {
+        let top = fy - 4;
+        while (fy - top < 34 && T.solidAt(fx, top)) top -= 2;
+        const h = fy - top;
+        if (h < 32 && !T.solidAt(fx, top - P_H) && !T.solidAt(this.x, top - P_H)) {
+          Body.setPosition(this.body, { x: this.x + dir * 3, y: this.y - h - 1 });
+          vx = dir * Math.max(Math.abs(vx), 160);
+          vy = Math.min(vy, 0);
+        }
+      }
+    }
     if (this.noGravity > 0) { this.noGravity -= dt; vy -= 1600 * dt; }
     if (dir !== 0 && this.locked <= 0 && this.cast === 'none') this.facing = dir;
     else if (this.cast !== 'none' && Math.abs(Math.cos(this.aim)) > 0.15) this.facing = Math.cos(this.aim) >= 0 ? 1 : -1;
@@ -316,9 +331,9 @@ export class Player {
     const inSolid = this.insideSolid();
     const speed = inSolid ? 190 : 280;
     const vy = (down ? 1 : 0) - (up ? 1 : 0);
-    // gentle gravity in open air so it still feels grounded
+    // weightless: hover unless W/S is held, so you never sink into floors by accident
     const tvx = dir * speed;
-    const tvy = vy !== 0 ? vy * speed : (inSolid ? 0 : 150);
+    const tvy = vy * speed;
     setVel(this.body, smooth(this.vx, tvx, 7, dt), smooth(this.vy, tvy, 7, dt));
     if (dir !== 0) this.facing = dir;
     this.grounded = false;

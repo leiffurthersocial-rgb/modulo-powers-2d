@@ -23,7 +23,7 @@ export function entitiesNearSegment(ax: number, ay: number, bx: number, by: numb
 /** find a free position for the player hull near (x,y); null if none */
 export function freeSpotNear(x: number, y: number, maxR = 400): Vec | null {
   const T = G.terrain;
-  const free = (px: number, py: number) => px > 30 && px < T.w - 30 && py > 50 && py < T.h - 50 && T.coverage(px - 10, py - 36, px + 10, py + 36) === 0;
+  const free = (px: number, py: number) => px > 30 && px < T.w - 30 && py > 50 && py < T.h - 50 && T.coverage(px - 13, py - 40, px + 13, py + 40) === 0;
   if (free(x, y)) return { x, y };
   for (let r = 8; r <= maxR; r += 8) {
     for (let k = 0; k < 16; k++) {

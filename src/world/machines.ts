@@ -132,6 +132,7 @@ export class Lamp extends Entity {
   radius: number;
   color: RGB;
   private flick = 0;
+  private cone = -1;
 
   constructor(x: number, y: number, always: boolean, radius = 300, color: RGB = [255, 230, 170]) {
     super();
@@ -198,12 +199,14 @@ export class Lamp extends Entity {
 
   drawGlow(ctx: CanvasRenderingContext2D) {
     if (!this.on) return;
+    if (this.cone < 0) this.cone = Math.min(this.radius * 0.9, G.terrain.groundBelow(this.x, this.y + 12) - this.y);
+    const L = this.cone, wk = L / (this.radius * 0.9);
     ctx.globalAlpha = 0.35;
     ctx.fillStyle = `rgb(${this.color[0]},${this.color[1]},${this.color[2]})`;
     ctx.beginPath();
     ctx.moveTo(this.x - 10, this.y + 4);
-    ctx.lineTo(this.x - this.radius * 0.45, this.y + this.radius * 0.9);
-    ctx.lineTo(this.x + this.radius * 0.45, this.y + this.radius * 0.9);
+    ctx.lineTo(this.x - this.radius * 0.45 * wk, this.y + L);
+    ctx.lineTo(this.x + this.radius * 0.45 * wk, this.y + L);
     ctx.lineTo(this.x + 10, this.y + 4);
     ctx.closePath();
     ctx.globalAlpha = 0.06;

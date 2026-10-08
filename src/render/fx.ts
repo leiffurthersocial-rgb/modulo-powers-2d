@@ -188,7 +188,7 @@ export class Decals {
             ctx.moveTo(x, y);
             for (let k = 0; k < 4; k++) {
               x += Math.sin(d.seed + i * 1.9 + k) * d.size * 0.12 + (i - 2) * d.size * 0.05;
-              y += 4 + Math.abs(Math.cos(d.seed + k + i)) * 6;
+              y += 2 + Math.abs(Math.cos(d.seed + k + i)) * 2.5;
               ctx.lineTo(x, y);
             }
           }

@@ -130,7 +130,7 @@ class Quake implements Effect {
       const m = e.mass();
       if (e instanceof Block) { e.damage(70 * k, 'blunt'); continue; }
       e.applyImpulse(Math.sign(dx || 1) * m * 380 * k, -m * (520 + 300 * k));
-      e.damage(14 * k + 4, 'blunt');
+      e.damage(20 * k + 6, 'blunt');
       if (e instanceof Stickman) e.knock(2.5);
     }
     return this.t < this.r / 900 + 0.2;
@@ -153,11 +153,12 @@ export class EarthPower extends Power {
   color: RGB = BROWN;
   color2: RGB = GREEN;
   eye = '#b8f0a0';
+  tagline = 'Heavy, slow and devastating. Everything has weight.';
   abilities: AbilityDef[] = [
-    { name: 'Rock Hurl', short: 'Rock Hurl', desc: 'Rip a boulder out of the ground (tearing earth, debris), then fling it with heavy momentum. It crushes, knocks down and breaks wood and lamps.', cost: 14, cooldown: 0.55, kind: 'tap', offensive: true },
-    { name: 'Raise Pillar', short: 'Pillar', desc: 'A stone pillar erupts at the aim point: a platform to climb, a launcher that flings whatever stands on it, cover or a battering ram.', cost: 18, cooldown: 0.6, kind: 'tap', offensive: true },
-    { name: 'Earthquake Stomp', short: 'Quake', desc: 'Slam the ground (from the air you dive first). A shockwave cracks the terrain, topples stacks and knocks everything nearby off its feet.', cost: 30, cooldown: 1.8, kind: 'tap', offensive: true },
-    { name: 'Stone Armor', short: 'Stone Armor', desc: 'Encase yourself in rock plates: heavier, slower, resistant, and you body-check things you run into. The armor cracks over time. Tap again to burst it.', cost: 28, cooldown: 3, kind: 'tap' },
+    { name: 'Rock Hurl', short: 'Rock Hurl', desc: 'Rip a boulder out of the ground (tearing earth, debris), then fling it with heavy momentum. It crushes, knocks down and breaks wood and lamps.', cost: 14, cooldown: 0.55, kind: 'tap', offensive: true , glyph: 'rock' },
+    { name: 'Raise Pillar', short: 'Pillar', desc: 'A stone pillar erupts at the aim point: a platform to climb, a launcher that flings whatever stands on it, cover or a battering ram.', cost: 18, cooldown: 0.6, kind: 'tap', offensive: true , glyph: 'pillar' },
+    { name: 'Earthquake Stomp', short: 'Quake', desc: 'Slam the ground (from the air you dive first). A shockwave cracks the terrain, topples stacks and knocks everything nearby off its feet.', cost: 30, cooldown: 1.8, kind: 'tap', offensive: true , glyph: 'quake' },
+    { name: 'Stone Armor', short: 'Stone Armor', desc: 'Encase yourself in rock plates: heavier, slower, resistant, and you body-check things you run into. The armor cracks over time. Tap again to burst it.', cost: 28, cooldown: 3, kind: 'tap' , glyph: 'armor' },
   ];
   private diving = false;
   private armorDecay = 0;

@@ -12,6 +12,7 @@ import { Decals, FX } from './render/fx';
 import { Lighting } from './render/lighting';
 import { particles, PK } from './render/particles';
 import { Renderer } from './render/renderer';
+import { resetFogCache } from './render/atmosphere';
 import { Block } from './world/blocks';
 import { Entity } from './world/entity';
 import { FireSystem } from './world/fire';
@@ -73,8 +74,10 @@ export class Game {
   infinite = false;
   slowmo = false;
   godMode = false;
+  autoAim = false;
   muted = false;
   showHelp = false;
+  private pausedBeforeHelp = false;
   title = true;
   titleT = 0;
   flashAmt = 0;
@@ -110,6 +113,7 @@ export class Game {
     };
     this.powerList = [this.powers.lightning, this.powers.fire, this.powers.water, this.powers.earth, this.powers.shadow];
     particles.solid = this.terrain.solidAt;
+    try { this.autoAim = localStorage.getItem('mp.autoAim') === '1'; } catch { /* ignore */ }
     this.loadMap(0);
     this.loop = new Loop({
       step: (dt) => { const t0 = performance.now(); this.step(dt); this.perf.step += (performance.now() - t0 - this.perf.step) * 0.05; },
@@ -168,8 +172,9 @@ export class Game {
         const m = srcBody.isStatic ? 3 : srcBody.mass;
         const thrown = src instanceof Prop && src.crushing > 0;
         if (dst instanceof Stickman || dst instanceof Strawman) {
-          const k = (speed - 260) * 0.03 * Math.min(3, m) * (thrown ? 2 : 1);
-          if (k > 1) {
+          const k = Math.min(thrown ? 55 : 35, (speed - 260) * 0.02 * Math.min(2.5, m) * (thrown ? 1.5 : 1));
+          if (k > 1 && this.time - dst.lastImpactT > 0.25) {
+            dst.lastImpactT = this.time;
             dst.damage(k, 'blunt', pt.x, pt.y);
             if (k > 6) dst.applyImpulse(rvx * 0, 0);
           }
@@ -181,8 +186,13 @@ export class Game {
         crush(oa, ob, a);
         crush(ob, oa, b);
         // ragdolls slamming into terrain
-        if (oa instanceof Stickman && b.isStatic && speed > 650) oa.damage((speed - 650) * 0.04, 'blunt');
-        if (ob instanceof Stickman && a.isStatic && speed > 650) ob.damage((speed - 650) * 0.04, 'blunt');
+        // ragdolls slamming into terrain: once per 0.3 s, not once per limb
+        for (const [st, other] of [[oa, b], [ob, a]] as const) {
+          if (st instanceof Stickman && other.isStatic && speed > 750 && this.time - st.lastImpactT > 0.3) {
+            st.lastImpactT = this.time;
+            st.damage(Math.min(25, (speed - 750) * 0.035), 'blunt');
+          }
+        }
       }
       // stone armor body-check
       const pl = this.player;
@@ -274,6 +284,7 @@ export class Game {
     this.lighting.ambient = this.map.ambient;
     this.lighting.ambientTint = this.map.tint;
     this.terrain.reset(this.map.w, this.map.h);
+    resetFogCache();
     this.bg.setTheme(this.map.theme);
     this.cam.bounds = { x0: 0, y0: 0, x1: this.map.w, y1: this.map.h };
     const spawn = this.map.build(this);
@@ -317,7 +328,7 @@ export class Game {
     if (this.energy < amount && !partial) return false;
     if (this.energy <= 0) return false;
     this.energy = Math.max(0, this.energy - amount);
-    this.energyDelay = 0.5;
+    this.energyDelay = 0.7;
     return true;
   }
 
@@ -501,11 +512,36 @@ export class Game {
       return;
     }
     inp.consumeAnyKey();
+    // field guide: pauses the game, arrows / 1-5 / Q E switch tabs
+    if (this.showHelp) {
+      if (inp.framePressedKey('KeyH') || inp.framePressedKey('KeyP')) {
+        this.showHelp = false;
+        this.loop.paused = this.pausedBeforeHelp;
+        audio.blip(440);
+      } else {
+        if (inp.framePressedKey('ArrowRight') || inp.framePressedKey('KeyD')) { this.hud.helpNav(1); audio.blip(700, 0.06); }
+        if (inp.framePressedKey('ArrowLeft') || inp.framePressedKey('KeyA')) { this.hud.helpNav(-1); audio.blip(620, 0.06); }
+        for (let i = 0; i < 5; i++) if (inp.framePressedKey('Digit' + (i + 1))) { this.switchPower(i); this.hud.helpTab = i; }
+        if (inp.framePressedKey('KeyQ')) { this.switchPower(this.powerIndex - 1); this.hud.helpTab = this.powerIndex; }
+        if (inp.framePressedKey('KeyE')) { this.switchPower(this.powerIndex + 1); this.hud.helpTab = this.powerIndex; }
+        if (inp.framePressedKey('KeyM')) { this.muted = !this.muted; audio.setMuted(this.muted); }
+      }
+      inp.poll();
+      return;
+    }
+    if (inp.framePressedKey('KeyH')) {
+      this.showHelp = true;
+      this.pausedBeforeHelp = this.loop.paused;
+      this.loop.paused = true;
+      this.hud.helpTab = this.powerIndex;
+      audio.blip(520);
+      inp.poll();
+      return;
+    }
     if (inp.framePressedKey('KeyP')) {
       this.loop.paused = !this.loop.paused;
       audio.blip(this.loop.paused ? 440 : 660);
     }
-    if (inp.framePressedKey('KeyH')) { this.showHelp = !this.showHelp; audio.blip(520); }
     if (inp.framePressedKey('KeyM')) {
       this.muted = !this.muted;
       audio.setMuted(this.muted);
@@ -532,6 +568,12 @@ export class Game {
       if (this.infinite) for (const p of this.powerList) p.cd = [0, 0, 0, 0];
     }
     if (inp.framePressedKey('KeyB')) this.spawnDummyAtAim();
+    if (inp.framePressedKey('KeyG')) {
+      this.autoAim = !this.autoAim;
+      this.showToast(this.autoAim ? 'Auto-aim ON: locks onto the nearest target' : 'Auto-aim OFF');
+      audio.blip(this.autoAim ? 990 : 440);
+      try { localStorage.setItem('mp.autoAim', this.autoAim ? '1' : '0'); } catch { /* ignore */ }
+    }
     for (let i = 0; i < 5; i++) if (inp.framePressedKey('Digit' + (i + 1))) this.switchPower(i);
     if (inp.framePressedKey('KeyQ')) this.switchPower(this.powerIndex - 1);
     if (inp.framePressedKey('KeyE')) this.switchPower(this.powerIndex + 1);
@@ -582,7 +624,7 @@ export class Game {
 
     // energy regen
     if (this.energyDelay > 0) this.energyDelay -= dt;
-    else this.energy = Math.min(this.maxEnergy, this.energy + dt * 30);
+    else this.energy = Math.min(this.maxEnergy, this.energy + dt * 20);
     this.powers.shadow.regen(dt);
 
     // powers: input -> abilities

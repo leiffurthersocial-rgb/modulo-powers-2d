@@ -4,6 +4,7 @@
 import { G } from '../ctx';
 import { audio } from '../core/audio';
 import { RGB, Vec } from '../core/math';
+import type { GlyphId } from '../ui/glyphs';
 
 export type PowerId = 'lightning' | 'fire' | 'water' | 'earth' | 'shadow';
 
@@ -16,6 +17,7 @@ export interface AbilityDef {
   cooldown: number;
   kind: 'tap' | 'hold' | 'toggle';
   offensive?: boolean;
+  glyph: GlyphId;
 }
 
 export const KEYS = ['KeyJ', 'KeyK', 'KeyL', 'KeyI'];
@@ -27,6 +29,7 @@ export abstract class Power {
   abstract color: RGB;
   abstract color2: RGB;
   abstract eye: string;
+  abstract tagline: string;
   abstract abilities: AbilityDef[];
   cd = [0, 0, 0, 0];
   holding = [false, false, false, false];

@@ -48,7 +48,7 @@ class ShadowStrike implements Effect {
         for (const e of G.entitiesInRadius(s.x, s.y - s.h * 0.5, 34)) {
           if (this.hit.has(e.id)) continue;
           this.hit.add(e.id);
-          e.damage(15, 'shadow', s.x, s.y);
+          e.damage(26, 'shadow', s.x, s.y);
           const m = e.mass();
           e.applyImpulse(Math.sin(s.ang) * m * 200, -m * 620, s.x, s.y);
           if (e instanceof Stickman) e.knock(1.6);
@@ -105,11 +105,12 @@ export class ShadowPower extends Power {
   color: RGB = VIOLET;
   color2: RGB = INK;
   eye = '#d9b8ff';
+  tagline = "Lives in darkness. Light drains you, walls don't stop you.";
   abilities: AbilityDef[] = [
-    { name: 'Shadow Strike', short: 'Strike', desc: 'Ink-black spikes lash out along the ground (or toward your aim), impaling and throwing targets while the light around dims.', cost: 14, cooldown: 0.5, kind: 'tap', offensive: true },
-    { name: 'Invisibility', short: 'Invisible', desc: 'Toggle: fade to a faint heat-haze outline. NPCs lose track of you. Attacking or moving fast partially reveals you. Drains shadow energy.', cost: 6, cooldown: 0.4, kind: 'toggle' },
-    { name: 'Shadow Step', short: 'Shadow Step', desc: 'Dissolve into wisps and re-form at the aim point (range and line of sight limited, needs room to stand). Leaves you briefly disoriented.', cost: 20, cooldown: 0.5, kind: 'tap' },
-    { name: 'Phase', short: 'Phase', desc: 'Hold to become intangible and walk through walls and floors (W/S move vertically). Muffled, desaturated. If shadow energy runs out inside a wall you are violently ejected.', cost: 13, cooldown: 0.6, kind: 'hold' },
+    { name: 'Shadow Strike', short: 'Strike', desc: 'Ink-black spikes lash out along the ground (or toward your aim), impaling and throwing targets while the light around dims.', cost: 14, cooldown: 0.5, kind: 'tap', offensive: true , glyph: 'spikes' },
+    { name: 'Invisibility', short: 'Invisible', desc: 'Toggle: fade to a faint heat-haze outline. NPCs lose track of you. Attacking or moving fast partially reveals you. Drains shadow energy.', cost: 6, cooldown: 0.4, kind: 'toggle' , glyph: 'invis' },
+    { name: 'Shadow Step', short: 'Shadow Step', desc: 'Dissolve into wisps and re-form at the aim point (range and line of sight limited, needs room to stand). Leaves you briefly disoriented.', cost: 20, cooldown: 0.5, kind: 'tap' , glyph: 'step' },
+    { name: 'Phase', short: 'Phase', desc: 'Hold to become intangible and walk through walls and floors (W/S move vertically). Muffled, desaturated. If shadow energy runs out inside a wall you are violently ejected.', cost: 13, cooldown: 0.6, kind: 'hold' , glyph: 'phase' },
   ];
   private drone: LoopHandle | null = null;
   private phaseIntensity = 0;

@@ -7,6 +7,7 @@ export interface StickJoints {
   elbowL: Vec; handL: Vec; elbowR: Vec; handR: Vec;
   kneeL: Vec; footL: Vec; kneeR: Vec; footR: Vec;
   /** which limbs exist (detached limbs are drawn separately) */
+  toeL?: Vec; toeR?: Vec;
   hasArmL?: boolean; hasArmR?: boolean; hasLegL?: boolean; hasLegR?: boolean;
 }
 
@@ -29,8 +30,8 @@ export function drawStick(ctx: CanvasRenderingContext2D, j: StickJoints, st: Sti
     ctx.moveTo(j.neck.x, j.neck.y); ctx.lineTo(j.pelvis.x, j.pelvis.y);
     if (j.hasArmL !== false) seg(j.neck, j.elbowL, j.handL);
     if (j.hasArmR !== false) seg(j.neck, j.elbowR, j.handR);
-    if (j.hasLegL !== false) seg(j.pelvis, j.kneeL, j.footL);
-    if (j.hasLegR !== false) seg(j.pelvis, j.kneeR, j.footR);
+    if (j.hasLegL !== false) { seg(j.pelvis, j.kneeL, j.footL); if (j.toeL) ctx.lineTo(j.toeL.x, j.toeL.y); }
+    if (j.hasLegR !== false) { seg(j.pelvis, j.kneeR, j.footR); if (j.toeR) ctx.lineTo(j.toeR.x, j.toeR.y); }
   };
   if (st.outline) {
     ctx.strokeStyle = st.outline;

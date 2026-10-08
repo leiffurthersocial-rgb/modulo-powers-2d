@@ -7,7 +7,7 @@ import { setVel } from '../world/phys';
 import { AbilityDef, Effect, Power } from './power';
 import { inCone } from './util';
 
-const CYAN: RGB = [90, 210, 255];
+const CYAN: RGB = [60, 220, 230];
 const DEEP: RGB = [40, 110, 220];
 const DROP: RGB = [130, 200, 255];
 
@@ -103,11 +103,12 @@ export class WaterPower extends Power {
   color: RGB = CYAN;
   color2: RGB = DEEP;
   eye = '#c8f2ff';
+  tagline = 'Pushes, soaks and conducts. Freeze it, boil it, ride it.';
   abilities: AbilityDef[] = [
-    { name: 'Water Jet', short: 'Water Jet', desc: 'Hold for a high-pressure stream. Knocks dummies back, pins and pushes crates, soaks everything and puts out fires.', cost: 18, cooldown: 0, kind: 'hold', offensive: true },
-    { name: 'Tidal Wave', short: 'Tidal Wave', desc: 'Summon a wave that rolls along the ground in the direction you face, carrying and flinging objects and characters.', cost: 38, cooldown: 2.6, kind: 'tap', offensive: true },
-    { name: 'Freeze', short: 'Freeze', desc: 'Freeze water at the aim point into walkable ice bridges, freeze soaked targets solid (hit them hard to shatter), or raise an ice wall.', cost: 18, cooldown: 0.7, kind: 'tap' },
-    { name: 'Geyser / Bubble', short: 'Geyser/Bubble', desc: 'Tap: a geyser launches you upward (in water: a swim boost toward your aim). Hold: a bubble shield that floats you, blocks fire and pushes things away.', cost: 14, cooldown: 0.6, kind: 'hold' },
+    { name: 'Water Jet', short: 'Water Jet', desc: 'Hold for a high-pressure stream. Knocks dummies back, pins and pushes crates, soaks everything and puts out fires.', cost: 18, cooldown: 0, kind: 'hold', offensive: true , glyph: 'jet' },
+    { name: 'Tidal Wave', short: 'Tidal Wave', desc: 'Summon a wave that rolls along the ground in the direction you face, carrying and flinging objects and characters.', cost: 38, cooldown: 2.6, kind: 'tap', offensive: true , glyph: 'wave' },
+    { name: 'Freeze', short: 'Freeze', desc: 'Freeze water at the aim point into walkable ice bridges, freeze soaked targets solid (hit them hard to shatter), or raise an ice wall.', cost: 15, cooldown: 0.7, kind: 'tap' , glyph: 'snow' },
+    { name: 'Geyser / Bubble', short: 'Geyser/Bubble', desc: 'Tap: a geyser launches you upward (in water: a swim boost toward your aim). Hold: a bubble shield that floats you, blocks fire and pushes things away.', cost: 14, cooldown: 0.6, kind: 'hold' , glyph: 'geyser' },
   ];
   private jet: LoopHandle | null = null;
   private iHeld = 0;
@@ -205,7 +206,7 @@ export class WaterPower extends Power {
         const m = e.mass();
         e.applyImpulse(d.x * Math.max(m, 1) * 2400 * dt, d.y * Math.max(m, 1) * 2400 * dt - m * 200 * dt, hit.x, hit.y);
         e.soak(dt * 3);
-        if (e.kind === 'dummy' || e.kind === 'npc') { e.damage(dt * 4, 'water'); (e as any).startle = 0.4; }
+        if (e.kind === 'dummy' || e.kind === 'npc') { e.damage(dt * 8, 'water'); (e as any).startle = 0.4; }
         if (e instanceof Block && e.mat === 'ice') e.age = 0;
       }
       // splash at impact
@@ -332,7 +333,7 @@ export class WaterPower extends Power {
   }
 
   drawIcon(ctx: CanvasRenderingContext2D, x: number, y: number, s: number) {
-    ctx.fillStyle = 'rgb(90,210,255)';
+    ctx.fillStyle = 'rgb(60,220,230)';
     ctx.beginPath();
     ctx.moveTo(x, y - s);
     ctx.quadraticCurveTo(x + s * 0.8, y + s * 0.05, x + s * 0.6, y + s * 0.5);

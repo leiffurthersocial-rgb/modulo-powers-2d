@@ -6,7 +6,7 @@ const GAME_KEYS = new Set([
   'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
   'KeyJ', 'KeyK', 'KeyL', 'KeyI',
   'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5',
-  'KeyQ', 'KeyE', 'KeyP', 'KeyR', 'KeyT', 'KeyN', 'KeyB', 'KeyV', 'KeyF', 'KeyH', 'KeyM',
+  'KeyQ', 'KeyE', 'KeyG', 'KeyP', 'KeyR', 'KeyT', 'KeyN', 'KeyB', 'KeyV', 'KeyF', 'KeyH', 'KeyM',
 ]);
 
 export class Input {

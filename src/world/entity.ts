@@ -40,6 +40,8 @@ export abstract class Entity {
   /** steam/elec damage throttling */
   protected dotAcc = 0;
   lastDamageType: DmgType | null = null;
+  /** last time this entity took impact (collision) damage, to avoid per-limb stacking */
+  lastImpactT = -1;
 
   abstract bodies: MBody[];
   abstract center(): Vec;
@@ -98,7 +100,7 @@ export abstract class Entity {
     if (this.frozen > 0) { this.frozen = Math.max(0, this.frozen - amount * 2); return; }
     this.heat += amount;
     if ((this.flammable || this.mat === 'flesh') && this.heat >= 1 && this.burning <= 0 && this.fuel > 0) {
-      this.burning = 0.4;
+      this.burning = this.flammable ? 0.4 : 0.9; // characters burn for ~3 s
       const c = this.center();
       audio.fireWhoosh(c.x, c.y, 0.3);
     }
@@ -186,7 +188,7 @@ export abstract class Entity {
     if (this.burning > 0) {
       if (this.wet > 0.3) { this.extinguish(1); return; }
       const rate = MATS[this.mat].burnRate || 0.5;
-      this.burning = Math.min(1, this.burning + dt * 0.5);
+      if (this.flammable) this.burning = Math.min(1, this.burning + dt * 0.5);
       if (this.flammable) {
         this.fuel -= dt * 0.055 * rate;
         this.scorch = Math.min(1, this.scorch + dt * 0.12);
@@ -197,9 +199,9 @@ export abstract class Entity {
         }
       } else {
         // non-flammables (flesh) burn briefly
-        this.burning -= dt * 0.25;
+        this.burning -= dt * 0.28;
         this.scorch = Math.min(1, this.scorch + dt * 0.08);
-        this.damage(dt * 6, 'fire');
+        this.damage(dt * 7 * Math.min(1, this.burning + 0.3), 'fire');
       }
       emitFire(this, dt);
     }
@@ -236,11 +238,11 @@ export function emitFire(e: Entity, dt: number) {
   const intensity = e.burning;
   const b = e.bounds();
   const area = Math.max(400, (b.x1 - b.x0) * (b.y1 - b.y0));
-  const count = particles.n(dt * (20 + Math.min(70, area / 50)) * intensity);
+  const count = particles.n(dt * (18 + Math.min(45, area / 60)) * intensity);
   for (let i = 0; i < count; i++) {
     const p = e.randomPoint();
     const c = FIRE_COLORS[(Math.random() * FIRE_COLORS.length) | 0];
-    particles.emit({ kind: PK.Glow, x: p.x, y: p.y, vx: rand(-20, 20), vy: rand(-120, -40), life: rand(0.25, 0.6), size: rand(6, 14) * (0.6 + intensity * 0.6), sizeEnd: 1, color: c, alpha: 0.85, flicker: 0.5 });
+    particles.emit({ kind: PK.Glow, x: p.x, y: p.y, vx: rand(-20, 20), vy: rand(-120, -40), life: rand(0.25, 0.6), size: rand(6, 14) * (0.6 + intensity * 0.6), sizeEnd: 1, color: c, alpha: 0.7, flicker: 0.5 });
   }
   if (chance(dt * 6 * intensity)) {
     const p = e.randomPoint();

@@ -34,9 +34,10 @@ Designed for an iPad with a hardware keyboard. Keys use physical positions (`eve
 | Reset player only | T |
 | Next map | N |
 | Spawn a dummy or strawman at the aim point | B |
+| Toggle auto-aim (locks onto the nearest dummy/NPC in front of you; arrows or mouse override it) | G |
 | Slow motion | V |
 | Sandbox mode: infinite energy, no cooldowns | F |
-| Help overlay (abilities + Power Lab combos) | H |
+| Field guide: tabbed help with every power, controls and Power Lab combos (pauses the game; ← → or 1–5 switch tabs) | H |
 | Mute | M |
 
 ## The powers
@@ -46,7 +47,7 @@ Every power has an attack on **J** plus utility and movement abilities. Energy i
 ### ⚡ Lightning
 - **J Lightning Bolt**: an instant forking bolt. It chains through metal, wet targets and conductors, ignites straw and electrifies water. The thunder arrives a moment later.
 - **K Sky Strike**: marks a spot and the sky crackles. Then a huge bolt falls with a shockwave, a blinding flash and a scorch crater.
-- **L Lightning Dash**: a blink along a jagged path with afterimages and a short perception slow-down. It shocks everything you pass through.
+- **L Lightning Dash**: a 0.12 s high-speed run of about 300px along a jagged path with afterimages. It goes the way you're moving (arrows/mouse override that), zips through dummies while shocking them, stops at walls and keeps some momentum.
 - **I Overcharge** (hold): static builds up with arcs and a rising hum. On release it powers generators, lamps and doors and sends out an EMP pulse.
 
 ### 🔥 Fire
@@ -101,6 +102,11 @@ Every power has an attack on **J** plus utility and movement abilities. Energy i
 - Dummies and NPCs are **active ragdolls**. Every limb is a physics body, and PD "muscles" pull them toward an animated pose until a hit knocks them out. Then they flop, and later get back up.
 - The player is a capsule body with acceleration/deceleration, coyote time, jump buffering, variable jump height, step-up assist, one-way platforms and swimming. The skeleton is animated procedurally with 2-bone IK.
 - Audio is built from noise bursts, oscillators and filters, with simple stereo panning and distance falloff. Loops (flamethrower, hum, drone and others) are modulated live.
+
+## Balancing
+- Shared energy: 100, regenerating at 20/s after a 0.7 s pause. That's about 10 Lightning Bolts or 5 s of flamethrower before you have to wait. F removes all limits.
+- A training dummy has 130 HP and takes about 5 bolts, 3–4 fireballs, 2–3 thrown rocks or 5 shadow strikes. Area abilities (Sky Strike, Quake, Heat Wave) hit everything nearby harder.
+- Characters on fire burn for about 3 s instead of until they die. Impact and fall damage apply once per hit rather than once per limb, and a thrown rock's crush damage is capped. Knockback stays big and fun but is no longer automatically lethal.
 
 ## Design decisions
 - **Aiming with a keyboard**: the arrow keys rotate the aim smoothly toward the pressed direction (Up+Right aims diagonally). When you turn around with A/D, the aim mirrors so it stays in front of you. A mouse or trackpad takes over when it moves.

@@ -3,6 +3,14 @@
 
 import type { Game } from '../game';
 import { particles } from './particles';
+import { colorGrade, drawContactShadows, drawGodRays, drawGrass, drawGroundFog, drawRims } from './atmosphere';
+import { RGB } from '../core/math';
+
+const LOOK: Record<string, { grass: RGB | null; rim: RGB; fog: RGB; top: RGB; bottom: RGB; rays: RGB }> = {
+  yard: { grass: [52, 78, 70], rim: [150, 175, 255], fog: [120, 130, 200], top: [70, 95, 190], bottom: [150, 95, 80], rays: [170, 185, 255] },
+  industrial: { grass: null, rim: [255, 170, 120], fog: [160, 110, 100], top: [120, 80, 120], bottom: [170, 100, 60], rays: [255, 200, 170] },
+  ruins: { grass: [40, 84, 62], rim: [140, 255, 200], fog: [90, 160, 140], top: [60, 130, 150], bottom: [110, 110, 70], rays: [170, 255, 220] },
+};
 
 export class Renderer {
   ctx: CanvasRenderingContext2D;
@@ -80,13 +88,17 @@ export class Renderer {
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
     g.bg.draw(ctx, cam, dpr, g.realTime, g.map.h);
+    const look = LOOK[g.map.theme];
+    drawGodRays(ctx, cam, g.realTime, g.bg.moonX, look.rays);
 
     // ---------------------------------------------------------- world
     ctx.save();
     cam.apply(ctx, dpr);
     g.map.drawBack?.(ctx, view, t);
     g.terrain.draw(ctx, view, g.map.palette);
+    if (look.grass) drawGrass(ctx, g.terrain, view, g.realTime, look.grass);
     g.decals.draw(ctx, view);
+    drawContactShadows(ctx, g, view);
     for (const e of g.entities) {
       const b = e.bounds();
       if (b.x1 < view.x0 - 60 || b.x0 > view.x1 + 60 || b.y1 < view.y0 - 60 || b.y0 > view.y1 + 60) continue;
@@ -97,6 +109,7 @@ export class Renderer {
     g.player.draw(ctx, alpha);
     g.water.draw(ctx, view, t);
     particles.drawNormal(ctx, view);
+    drawGroundFog(ctx, g, view, g.realTime, look.fog);
     g.map.drawFront?.(ctx, view, t);
     ctx.restore();
 
@@ -117,6 +130,7 @@ export class Renderer {
     gc.scale(cam.scale, cam.scale);
     gc.translate(-cam.x + cam.shakeX / cam.scale, -cam.y + cam.shakeY / cam.scale);
     g.lighting.renderTints(gc, cam);
+    drawRims(gc, g.terrain, view, look.rim);
     for (const e of g.entities) {
       const b = e.bounds();
       if (b.x1 < view.x0 - 60 || b.x0 > view.x1 + 60 || b.y1 < view.y0 - 60 || b.y0 > view.y1 + 60) continue;
@@ -176,6 +190,7 @@ export class Renderer {
       ctx.fillRect(0, 0, W, H);
       ctx.globalAlpha = 1;
     }
+    colorGrade(ctx, W, H, look.top, look.bottom, 0.22);
     ctx.drawImage(this.getVignette(W, H), 0, 0, W, H);
     ctx.restore();
 

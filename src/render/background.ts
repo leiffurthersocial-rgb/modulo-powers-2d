@@ -15,6 +15,7 @@ export class Background {
   private sky: [string, string, string] = ['#05060c', '#0b1024', '#1a1630'];
   private stars: { x: number; y: number; s: number; tw: number }[] = [];
   private moon = { x: 0.72, y: 0.18, r: 46, color: '#dfe6ff' };
+  get moonX() { return this.moon.x; }
   motes: { x: number; y: number; vx: number; vy: number; s: number; a: number }[] = [];
   private fog: RGB = [40, 50, 90];
 

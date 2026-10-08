@@ -109,11 +109,12 @@ export class FirePower extends Power {
   color: RGB = [255, 120, 40];
   color2: RGB = CORE;
   eye = '#ffd38a';
+  tagline = 'Spreads, sticks, burns things down and lights the dark.';
   abilities: AbilityDef[] = [
-    { name: 'Fireball', short: 'Fireball', desc: 'Hurl a flickering fireball. It explodes on impact with knockback (yours too: rocket-jump!), ignites flammables and leaves ground fire and scorch marks.', cost: 11, cooldown: 0.38, kind: 'tap', offensive: true },
-    { name: 'Flamethrower', short: 'Flamethrower', desc: 'Hold for a continuous stream of fire that sticks to the ground and spreads onto crates, straw and trees. Heat shimmer. Boils water.', cost: 22, cooldown: 0, kind: 'hold', offensive: true },
-    { name: 'Rocket Boost', short: 'Rocket', desc: 'Hold to blast flames from hands and feet for thrust. Steer with A/D. Leaves a smoke trail and scorches what is below you.', cost: 26, cooldown: 0, kind: 'hold' },
-    { name: 'Heat Wave', short: 'Heat Wave', desc: 'Radiate a wave of heat: melts ice, boils pools into scalding steam, dries soaked things, singes and pushes. Grants a brief ember shield.', cost: 28, cooldown: 2.2, kind: 'tap' },
+    { name: 'Fireball', short: 'Fireball', desc: 'Hurl a flickering fireball. It explodes on impact with knockback (yours too: rocket-jump!), ignites flammables and leaves ground fire and scorch marks.', cost: 12, cooldown: 0.38, kind: 'tap', offensive: true , glyph: 'fireball' },
+    { name: 'Flamethrower', short: 'Flamethrower', desc: 'Hold for a continuous stream of fire that sticks to the ground and spreads onto crates, straw and trees. Heat shimmer. Boils water.', cost: 22, cooldown: 0, kind: 'hold', offensive: true , glyph: 'flame' },
+    { name: 'Rocket Boost', short: 'Rocket', desc: 'Hold to blast flames from hands and feet for thrust. Steer with A/D. Leaves a smoke trail and scorches what is below you.', cost: 22, cooldown: 0, kind: 'hold' , glyph: 'rocket' },
+    { name: 'Heat Wave', short: 'Heat Wave', desc: 'Radiate a wave of heat: melts ice, boils pools into scalding steam, dries soaked things, singes and pushes. Grants a brief ember shield.', cost: 28, cooldown: 2.2, kind: 'tap' , glyph: 'heat' },
   ];
   private flame: LoopHandle | null = null;
   private rocketLoop: LoopHandle | null = null;

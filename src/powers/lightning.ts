@@ -10,8 +10,8 @@ import { Body, setVel } from '../world/phys';
 import { AbilityDef, Effect, Power } from './power';
 import { entitiesNearSegment } from './util';
 
-const YELLOW: RGB = [255, 240, 140];
-const BLUE: RGB = [140, 200, 255];
+const PALE: RGB = [200, 225, 255];
+const BLUE: RGB = [90, 150, 255];
 
 /** draw a forking bolt from a to b, returns nothing; branches are cosmetic */
 function forkBolt(x0: number, y0: number, x1: number, y1: number, width: number, life: number, rough = 18) {
@@ -64,6 +64,71 @@ function chain(x: number, y: number, hit: Set<Entity>, depth: number) {
   chain(c.x, c.y, hit, depth - 1);
 }
 
+/** the actual dash: a 0.12 s high-speed run along a jagged path */
+class DashRun implements Effect {
+  t = 0;
+  sx: number; sy: number;
+  hit = new Set<Entity>();
+  dist = 0;
+  static RANGE = 300;
+  static DUR = 0.12;
+  constructor(public dx: number, public dy: number) {
+    const pl = G.player;
+    this.sx = pl.x; this.sy = pl.y;
+    pl.setCast('dash', 0.3);
+    pl.locked = DashRun.DUR + 0.04;
+    pl.reveal = 1;
+    pl.dashing = true;
+    // intangible to props/characters while dashing (still blocked by terrain)
+    pl.body.collisionFilter.mask = 0x0001 | 0x0020 | 0x0040;
+    audio.zap(pl.x, pl.y, 1);
+    audio.whoosh(pl.x, pl.y, 0.2, 0.35, 3000, 600);
+    G.cam.punch(0.05);
+    G.cam.shake(0.15);
+    G.flash(0.08, [170, 200, 255]);
+    G.slowPulse(0.12);
+  }
+  update(dt: number) {
+    const pl = G.player;
+    if (pl.dead) return false;
+    this.t += dt;
+    const step = (DashRun.RANGE / DashRun.DUR) * dt;
+    const T = G.terrain;
+    let moved = 0;
+    // move in small increments, stop at terrain (feet stay above the floor)
+    for (let s = 0; s < step; s += 4) {
+      const nx = pl.x + this.dx * 4, ny = pl.y + this.dy * 4;
+      if (T.coverage(nx - 10, ny - 34, nx + 10, ny + 30) > 0) { this.t = DashRun.DUR; break; }
+      Body.setPosition(pl.body, { x: nx, y: ny });
+      moved += 4;
+    }
+    this.dist += moved;
+    setVel(pl.body, 0, 0);
+    pl.addAfterimage(Math.random() < 0.5 ? PALE : BLUE);
+    for (let k = 0; k < 3; k++) particles.emit({ kind: PK.Spark, x: pl.x + rand(-8, 8), y: pl.y + rand(-30, 30), vx: -this.dx * rand(100, 300), vy: rand(-80, 80), life: 0.25, size: 1.4, color: PALE });
+    G.lighting.add(pl.x, pl.y - 10, 160, BLUE, 0.8, 0.4);
+    for (const e of entitiesNearSegment(pl.x - this.dx * moved, pl.y - this.dy * moved, pl.x, pl.y, 32)) {
+      if (this.hit.has(e)) continue;
+      this.hit.add(e);
+      zapEntity(e, this.dx, this.dy, 22, 0.8);
+      G.hitstop(0.02);
+    }
+    if (this.t >= DashRun.DUR) { this.end(); return false; }
+    return true;
+  }
+  end() {
+    const pl = G.player;
+    pl.dashing = false;
+    pl.body.collisionFilter.mask = 0xffff;
+    // keep some momentum, small hop if dashing upward
+    setVel(pl.body, this.dx * 360, this.dy < -0.2 ? this.dy * 420 : Math.min(0, this.dy * 200));
+    forkBolt(this.sx, this.sy - 10, pl.x, pl.y - 10, 2.2, 0.28, 22);
+    electrifyNearbyWater(pl.x, pl.y + 30, 10, 1.5);
+    audio.zap(pl.x, pl.y, 0.7);
+  }
+  stop() { if (G.player.dashing) this.end(); }
+}
+
 class SkyStrike implements Effect {
   t = 0;
   fired = false;
@@ -90,7 +155,7 @@ class SkyStrike implements Effect {
     const top = G.cam.view().y0 - 200;
     const pts = jagged(x + rand(-80, 80), top, x, y, 34, 22);
     G.fx.bolt(pts, 7, BLUE, 0.45);
-    G.fx.bolt(jagged(x + rand(-40, 40), top, x, y, 26, 20), 3, YELLOW, 0.3);
+    G.fx.bolt(jagged(x + rand(-40, 40), top, x, y, 26, 20), 3, PALE, 0.3);
     for (let i = 0; i < 4; i++) {
       const p = pts[Math.floor(rand(2, pts.length - 2))];
       G.fx.bolt(jagged(p.x, p.y, p.x + rand(-160, 160), p.y + rand(30, 160), 18, 12), 2, BLUE, 0.35);
@@ -129,14 +194,15 @@ class SkyStrike implements Effect {
 export class LightningPower extends Power {
   id = 'lightning' as const;
   name = 'Lightning';
-  color: RGB = [255, 238, 120];
+  color: RGB = [110, 170, 255];
   color2: RGB = BLUE;
-  eye = '#fffbd0';
+  eye = '#d6e8ff';
+  tagline = 'Fast, blinding, chains through anything that conducts.';
   abilities: AbilityDef[] = [
-    { name: 'Lightning Bolt', short: 'Bolt', desc: 'Instant forking bolt toward your aim. Chains to metal, wet targets and conductors, ignites straw, electrifies water. Thunder follows.', cost: 9, cooldown: 0.32, kind: 'tap', offensive: true },
-    { name: 'Sky Strike', short: 'Sky Strike', desc: 'Mark a spot. The sky crackles, then a massive bolt falls with a shockwave, blinding flash and scorch crater.', cost: 32, cooldown: 2.8, kind: 'tap', offensive: true },
-    { name: 'Lightning Dash', short: 'Dash', desc: 'Blink along a jagged path in the aim direction with afterimages and a perception slow-down. Shocks everything you pass through.', cost: 16, cooldown: 0.8, kind: 'tap' },
-    { name: 'Overcharge', short: 'Overcharge', desc: 'Hold to build static, hair-raising arcs and a rising hum. Release to power generators, lamps and doors and fire an EMP pulse. Longer = bigger.', cost: 14, cooldown: 1.2, kind: 'hold' },
+    { name: 'Lightning Bolt', short: 'Bolt', desc: 'Instant forking bolt toward your aim. Chains to metal, wet targets and conductors, ignites straw, electrifies water. Thunder follows.', cost: 10, cooldown: 0.3, kind: 'tap', offensive: true , glyph: 'bolt' },
+    { name: 'Sky Strike', short: 'Sky Strike', desc: 'Mark a spot. The sky crackles, then a massive bolt falls with a shockwave, blinding flash and scorch crater.', cost: 32, cooldown: 2.8, kind: 'tap', offensive: true , glyph: 'skystrike' },
+    { name: 'Lightning Dash', short: 'Dash', desc: 'Blink along a jagged path in the aim direction with afterimages and a perception slow-down. Shocks everything you pass through.', cost: 18, cooldown: 0.7, kind: 'tap' , glyph: 'dash' },
+    { name: 'Overcharge', short: 'Overcharge', desc: 'Hold to build static, hair-raising arcs and a rising hum. Release to power generators, lamps and doors and fire an EMP pulse. Longer = bigger.', cost: 14, cooldown: 1.2, kind: 'hold' , glyph: 'charge' },
   ];
   private chargeT = 0;
   private hum: LoopHandle | null = null;
@@ -152,10 +218,10 @@ export class LightningPower extends Power {
       const h = pl.hand(18);
       const hit = G.raycast(h.x, h.y, d.x, d.y, 680, { step: 6 });
       forkBolt(h.x, h.y, hit.x, hit.y, 2.6, 0.22);
-      G.fx.bolt(jagged(h.x, h.y, hit.x, hit.y, 10, 16), 1.2, YELLOW, 0.12);
+      G.fx.bolt(jagged(h.x, h.y, hit.x, hit.y, 10, 16), 1.2, PALE, 0.12);
       G.flash(0.18, [200, 220, 255]);
       G.lighting.flash((h.x + hit.x) / 2, (h.y + hit.y) / 2, 520, BLUE, 1.6, 0.3);
-      G.lighting.flash(hit.x, hit.y, 260, YELLOW, 1.6, 0.25);
+      G.lighting.flash(hit.x, hit.y, 260, PALE, 1.6, 0.25);
       G.cam.shake(0.22);
       G.hitstop(0.035);
       audio.zap(hit.x, hit.y, 1.2);
@@ -195,41 +261,20 @@ export class LightningPower extends Power {
 
   private dash() {
     const pl = G.player;
-    let d = pl.aimDir();
-    if (Math.abs(d.y) > 0.92 && pl.grounded && d.y > 0) d = { x: pl.facing, y: 0 };
-    const sx = pl.x, sy = pl.y;
-    // march the hull until it would hit terrain
-    let dist = 0;
-    for (let s = 8; s <= 280; s += 8) {
-      const px = sx + d.x * s, py = sy + d.y * s;
-      if (G.terrain.coverage(px - 10, py - 36, px + 10, py + 36) > 0) break;
-      dist = s;
+    const inp = G.input;
+    // direction: explicit aim (arrows / mouse) wins, otherwise the way you're moving / facing
+    const arrows = inp.isDown('ArrowLeft') || inp.isDown('ArrowRight') || inp.isDown('ArrowUp') || inp.isDown('ArrowDown');
+    let d: Vec;
+    if (arrows || pl.mouseAiming) d = pl.aimDir();
+    else {
+      const mx = (inp.isDown('KeyD') ? 1 : 0) - (inp.isDown('KeyA') ? 1 : 0);
+      const my = inp.isDown('KeyW') ? -0.6 : inp.isDown('KeyS') && !pl.grounded ? 0.6 : 0;
+      d = { x: mx || pl.facing, y: my };
+      const l = Math.hypot(d.x, d.y); d = { x: d.x / l, y: d.y / l };
     }
-    const ex = sx + d.x * dist, ey = sy + d.y * dist;
-    for (let k = 0; k < 5; k++) {
-      Body.setPosition(pl.body, { x: sx + (ex - sx) * (k / 5), y: sy + (ey - sy) * (k / 5) });
-      pl.addAfterimage(k % 2 ? YELLOW : BLUE);
-    }
-    Body.setPosition(pl.body, { x: ex, y: ey });
-    const p = pl.body.plugin as any; p.px = ex; p.py = ey;
-    setVel(pl.body, d.x * 420, d.y * 420 - (d.y < 0 ? 150 : 0));
-    pl.setCast('dash', 0.25);
-    pl.locked = 0.12;
-    pl.reveal = 1;
-    forkBolt(sx, sy - 10, ex, ey - 10, 2.2, 0.25, 22);
-    G.slowPulse(0.22);
-    G.cam.punch(0.05);
-    G.cam.shake(0.18);
-    G.flash(0.1, [200, 220, 255]);
-    audio.zap(ex, ey, 1);
-    audio.whoosh(ex, ey, 0.2, 0.3, 3000, 600);
-    const hitSet = new Set<Entity>();
-    for (const e of entitiesNearSegment(sx, sy, ex, ey, 30)) {
-      if (hitSet.has(e)) continue;
-      hitSet.add(e);
-      zapEntity(e, d.x, d.y, 18, 0.7);
-    }
-    electrifyNearbyWater(ex, ey + 30, 10, 1.5);
+    // on the ground, never dash into the floor
+    if (pl.grounded && d.y > 0) { d = { x: Math.sign(d.x) || pl.facing, y: 0 }; }
+    G.effects.push(new DashRun(d.x, d.y));
   }
 
   hold(i: number, dt: number) {
@@ -247,7 +292,7 @@ export class LightningPower extends Power {
       const a = rand(0, Math.PI * 2), r = 20 + k * 30;
       G.fx.arc(pl.x + rand(-6, 6), pl.y + rand(-30, 20), pl.x + Math.cos(a) * r, pl.y - 10 + Math.sin(a) * r, BLUE, 1 + k, 0.08, 6);
     }
-    if (chance(dt * 20)) particles.emit({ kind: PK.Spark, x: pl.x + rand(-8, 8), y: pl.y - 44, vx: rand(-60, 60), vy: rand(-200, -80), life: 0.2, size: 1.2, color: YELLOW });
+    if (chance(dt * 20)) particles.emit({ kind: PK.Spark, x: pl.x + rand(-8, 8), y: pl.y - 44, vx: rand(-60, 60), vy: rand(-200, -80), life: 0.2, size: 1.2, color: PALE });
     G.lighting.add(pl.x, pl.y - 10, 80 + k * 160, BLUE, 0.4 + k * 0.6, 0.5);
     G.cam.shake(k * 0.02);
     // nearby metal starts humming
@@ -270,7 +315,7 @@ export class LightningPower extends Power {
     pl.setCast('raise', 0.3);
     pl.reveal = 1;
     G.fx.ring(x, y, 10, r, BLUE, 0.45);
-    G.fx.ring(x, y, 10, r * 0.7, YELLOW, 0.35);
+    G.fx.ring(x, y, 10, r * 0.7, PALE, 0.35);
     G.flash(0.15 + k * 0.3, [190, 220, 255]);
     G.lighting.flash(x, y, r * 1.6, BLUE, 1 + k, 0.4);
     G.cam.shake(0.2 + k * 0.4);
@@ -307,7 +352,7 @@ export class LightningPower extends Power {
     if (!pl.dead && chance(dt * 2)) {
       G.fx.arc(pl.x + rand(-8, 8), pl.y + rand(-30, 10), pl.x + rand(-16, 16), pl.y + rand(-34, 20), BLUE, 0.8, 0.06, 4);
     }
-    if (!pl.dead) G.lighting.add(pl.x, pl.y - 14, 90, YELLOW, 0.25, 0.3);
+    if (!pl.dead) G.lighting.add(pl.x, pl.y - 14, 90, PALE, 0.25, 0.3);
   }
 
   reticle(): Vec | null {
@@ -315,7 +360,7 @@ export class LightningPower extends Power {
   }
 
   drawIcon(ctx: CanvasRenderingContext2D, x: number, y: number, s: number) {
-    ctx.fillStyle = 'rgb(255,238,120)';
+    ctx.fillStyle = 'rgb(130,185,255)';
     ctx.beginPath();
     ctx.moveTo(x + s * 0.15, y - s);
     ctx.lineTo(x - s * 0.55, y + s * 0.12);

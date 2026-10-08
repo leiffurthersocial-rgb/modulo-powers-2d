@@ -8,6 +8,7 @@ import { angleLerp, chance, clamp, lerp, rand, RGB, smooth, Vec } from '../core/
 import { particles, PK } from '../render/particles';
 import { drawStick, StickJoints } from '../render/stickdraw';
 import { DmgType } from '../world/materials';
+import type { Entity } from '../world/entity';
 import { Bodies, Body, CAT, ipos, MBody, plug, setVel, vel } from '../world/phys';
 
 export const P_W = 22, P_H = 76;
@@ -50,6 +51,7 @@ export class Player {
   armor = 0;       // stone armor hp (0 = none)
   armorMax = 0;
   rocket = false;
+  dashing = false;
   locked = 0;      // seconds movement is locked (dash/teleport)
   noGravity = 0;
   speedMul = 1;
@@ -60,7 +62,7 @@ export class Player {
   castT = 0;       // remaining time of cast pose
   castDur = 0.3;
   castCharge = 0;  // 0..1 for hold poses
-  private anim = { phase: 0, lean: 0, crouch: 0, air: 0, landT: 0, hands: [{ x: 8, y: -10 }, { x: -8, y: -10 }], feet: [{ x: 5, y: 37 }, { x: -5, y: 37 }], bob: 0, hitLean: 0 };
+  private anim = { phase: 0, lean: 0, crouch: 0, air: 0, landT: 0, hands: [{ x: 8, y: -10 }, { x: -8, y: -10 }], feet: [{ x: 5, y: 0 }, { x: -5, y: 0 }], bob: 0, hitLean: 0 };
   private stepT = 0;
   private lastVy = 0;
   private aimedByMouse = false;
@@ -101,7 +103,10 @@ export class Player {
   chest(): Vec { return { x: this.x, y: this.y - 16 }; }
 
   visibility() {
-    return clamp(1 - this.invisAmount + this.reveal, 0, 1);
+    // steam clouds hide you too (fully when invisible, partly otherwise)
+    const steam = G.fire ? G.fire.steamAt(this.x, this.y - 10) : 0;
+    const v = clamp(1 - this.invisAmount + this.reveal, 0, 1);
+    return v * (1 - steam * (this.invisible ? 1 : 0.7));
   }
 
   setCast(pose: CastPose, dur: number) {
@@ -375,8 +380,32 @@ export class Player {
     if (this.grounded && this.vy < -50) this.grounded = false;
   }
 
+  /** auto-aim lock (null when none) */
+  autoTarget: Entity | null = null;
+
+  /** best auto-aim target: living dummies/NPCs/strawmen, in view, line of sight, front preferred */
+  private findTarget(): Entity | null {
+    let best: Entity | null = null, bestScore = 1e9;
+    const ox = this.x, oy = this.y - 14;
+    const moving = G.input.isDown('KeyA') || G.input.isDown('KeyD');
+    for (const e of G.entities) {
+      if (e.dead || (e.kind !== 'dummy' && e.kind !== 'npc' && e.kind !== 'strawman')) continue;
+      const c = e.center();
+      const dx = c.x - ox, dy = c.y - oy, d = Math.hypot(dx, dy);
+      if (d > 640 || d < 1) continue;
+      if (G.terrain.rayGrid(ox, oy, dx / d, dy / d, d - 12, 8) >= 0) continue;
+      const behind = Math.sign(dx) !== this.facing;
+      if (behind && moving) continue;
+      let score = d + (behind ? 350 : 0) + Math.abs(dy) * 0.6;
+      if (e === this.autoTarget) score -= 120; // stickiness, avoid flicker
+      if (score < bestScore) { bestScore = score; best = e; }
+    }
+    return best;
+  }
+
   private updateAim(dt: number) {
     const inp = G.input;
+    this.autoTarget = null;
     const ax = (inp.isDown('ArrowRight') ? 1 : 0) - (inp.isDown('ArrowLeft') ? 1 : 0);
     const ay = (inp.isDown('ArrowDown') ? 1 : 0) - (inp.isDown('ArrowUp') ? 1 : 0);
     if (ax !== 0 || ay !== 0) {
@@ -389,6 +418,13 @@ export class Player {
       this.aim = Math.atan2(w.y - (this.y - 14), w.x - this.x);
       this.aimedByMouse = true;
       this.mouseAimUntil = G.time + 2;
+    } else if (G.autoAim && (this.autoTarget = this.findTarget())) {
+      // auto-aim: smoothly track the best target in front of us
+      this.aimedByMouse = false;
+      const c = this.autoTarget.center();
+      const target = Math.atan2(c.y - (this.y - 14), c.x - this.x);
+      this.aim = angleLerp(this.aim, target, Math.min(1, dt * 14));
+      return;
     } else {
       this.aimedByMouse = false;
       // mirror the aim when turning around so it always points the way we face
@@ -410,7 +446,11 @@ export class Player {
     a.crouch = smooth(a.crouch, this.crouching ? 1 : a.landT > 0 ? a.landT * 0.7 : 0, 14, dt);
     if (a.landT > 0) a.landT = Math.max(0, a.landT - dt * 4);
     a.air = smooth(a.air, this.grounded || this.swimming ? 0 : 1, 10, dt);
-    if (this.grounded && speed > 20) a.phase += dt * (speed / 330) * 11;
+    if (this.grounded && speed > 15) {
+      // cadence matched to ground speed so planted feet don't slide
+      const S = strideFor(speed);
+      a.phase += dt * Math.PI * 2 * speed / (4 * S);
+    }
     else if (this.swimming) a.phase += dt * 5;
     a.bob += dt;
     a.hitLean = smooth(a.hitLean, this.hurtFlash > 0.3 ? 1 : 0, 10, dt);
@@ -428,8 +468,11 @@ export class Player {
     const speed = Math.abs(this.vx);
     const running = this.grounded && speed > 20 ? clamp(speed / 330, 0, 1.3) : 0;
 
-    let pelvisY = feetY - 37 + crouch * 14 + Math.abs(Math.sin(a.phase)) * -3 * running + Math.sin(t * 2.2) * 0.8 * (1 - running);
-    let lean = a.lean * f * 0 + a.lean - a.hitLean * f * 0.25;
+    const k = Math.min(1, running);
+    const uL = frac(a.phase / (Math.PI * 2)), uR = frac(uL + 0.5);
+    // pelvis dips at mid-stance and rises in the flight phase (twice per cycle)
+    let pelvisY = feetY - 37 + crouch * 14 + 2.6 * k * Math.cos(4 * Math.PI * uL - Math.PI) + 1.2 * k + Math.sin(t * 2.2) * 0.8 * (1 - k);
+    let lean = a.lean + f * 0.1 * k - a.hitLean * f * 0.25;
     if (this.cast === 'slam' || this.cast === 'stomp') { pelvisY += 8; }
     if (this.cast === 'charge') { pelvisY += 6 * this.castCharge; }
     const pelvis = { x: ox, y: pelvisY };
@@ -452,19 +495,30 @@ export class Player {
       const k = Math.sin(t * 3) * 3;
       fL = { x: ox + 4, y: pelvis.y + 34 + k }; fR = { x: ox - 4, y: pelvis.y + 33 - k };
     } else if (running > 0) {
-      const stride = 17 * running;
-      const lift = 10 * running;
-      const p = a.phase;
-      fL = { x: ox + f * Math.sin(p) * stride, y: feetY - Math.max(0, Math.cos(p)) * lift };
-      fR = { x: ox + f * Math.sin(p + Math.PI) * stride, y: feetY - Math.max(0, Math.cos(p + Math.PI)) * lift };
+      const S = strideFor(speed), H = 5 + 9 * k;
+      const gl = gait(uL, S, H), gr = gait(uR, S, H);
+      fL = { x: ox + f * (gl.x + 2), y: feetY + gl.y };
+      fR = { x: ox + f * (gr.x + 2), y: feetY + gr.y };
     } else {
       const w = crouch > 0.5 ? 12 : 7;
       fL = { x: ox + f * w, y: feetY };
       fR = { x: ox - f * (w - 2), y: feetY };
       if (this.cast === 'stomp' || this.cast === 'slam') { fL = { x: ox + f * 14, y: feetY }; fR = { x: ox - f * 12, y: feetY }; }
     }
+    // smooth foot motion between poses (not while running: the gait is exact)
+    const fs = running > 0 ? 1 : 0.35;
+    const smF = (cur: Vec, target: Vec) => {
+      cur.x = lerp(cur.x, target.x - ox, fs); cur.y = lerp(cur.y, target.y - feetY, fs);
+      return { x: ox + cur.x, y: feetY + cur.y };
+    };
+    fL = smF(a.feet[0], fL); fR = smF(a.feet[1], fR);
     const kneeL = ik(pelvis, fL, 18, 18, f);
     const kneeR = ik(pelvis, fR, 18, 18, f);
+    const toe = (ft: Vec) => {
+      const air = ft.y < feetY - 2 || !this.grounded;
+      return { x: ft.x + f * (air ? 4.5 : 6), y: ft.y + (air ? 3 : 0) };
+    };
+    const toeL = toe(fL), toeR = toe(fR);
 
     // ---- arms
     const d = this.aimDir();
@@ -530,9 +584,11 @@ export class Player {
           hL = { x: sh.x + f * 16, y: sh.y + (up ? -12 : -6) + Math.sin(t * 9) * 3 };
           hR = { x: sh.x - f * 16, y: sh.y + (up ? -8 : -10) - Math.sin(t * 9) * 3 };
         } else if (running > 0) {
-          const p = a.phase;
-          hL = { x: sh.x - f * Math.sin(p) * 14 * running + f * 3, y: sh.y + 22 - Math.abs(Math.sin(p)) * 4 };
-          hR = { x: sh.x - f * Math.sin(p + Math.PI) * 14 * running + f * 3, y: sh.y + 22 - Math.abs(Math.cos(p)) * 4 };
+          // arms swing opposite to the legs, elbows bend more the faster you run
+          const S = strideFor(speed);
+          const swingL = gait(uR, S, 0).x / S, swingR = gait(uL, S, 0).x / S;
+          const arm = (sw: number) => ({ x: sh.x + f * (sw * (8 + 9 * k) + 2), y: sh.y + 23 - 9 * k - Math.max(0, sw) * 8 * k });
+          hL = arm(swingL); hR = arm(swingR);
         } else {
           const br = Math.sin(t * 2.2) * 1.2;
           hL = { x: sh.x + f * 6, y: sh.y + 27 + br };
@@ -550,7 +606,7 @@ export class Player {
     const HL = sm(a.hands[0], hL, 0), HR = sm(a.hands[1], hR, 1);
     const elbowL = ik(sh, HL, 15, 15, -f);
     const elbowR = ik(sh, HR, 15, 15, -f);
-    return { head, headR: 8, neck, pelvis, elbowL, handL: HL, elbowR, handR: HR, kneeL, footL: fL, kneeR, footR: fR };
+    return { head, headR: 8, neck, pelvis, elbowL, handL: HL, elbowR, handR: HR, kneeL, footL: fL, kneeR, footR: fR, toeL, toeR };
   }
 
   draw(ctx: CanvasRenderingContext2D, alpha: number) {
@@ -612,8 +668,10 @@ export class Player {
     if (vis < 0.3) return;
     const j = this.skeleton(alpha);
     const c = this.aura;
-    ctx.globalAlpha = 0.22 * vis * (this.phasing ? 1.6 : 1);
-    drawStick(ctx, j, { color: `rgb(${c[0]},${c[1]},${c[2]})`, width: 10, facing: this.facing, eyes: 'none' });
+    ctx.globalAlpha = 0.13 * vis * (this.phasing ? 2 : 1);
+    drawStick(ctx, j, { color: `rgb(${c[0]},${c[1]},${c[2]})`, width: 9, facing: this.facing, eyes: 'none' });
+    ctx.globalAlpha = 0.28 * vis;
+    drawStick(ctx, j, { color: `rgb(${c[0]},${c[1]},${c[2]})`, width: 3, facing: this.facing, eyes: 'none' });
     ctx.globalAlpha = 0.9 * vis;
     // glowing eyes
     const f = this.facing;
@@ -641,6 +699,26 @@ export class Player {
     const j = this.skeleton(1);
     this.afterimages.push({ x: this.x, y: this.y, j: JSON.parse(JSON.stringify(j)), life: 1, color });
   }
+}
+
+const frac = (v: number) => v - Math.floor(v);
+
+/** stride half-length for a ground speed */
+function strideFor(speed: number) { return 8 + 10 * clamp(speed / 330, 0, 1.2); }
+
+/**
+ * Foot offset relative to the hip for gait phase u (0..1).
+ * First half: stance, foot planted and sliding back at ground speed.
+ * Second half: swing, foot lifts and arcs forward.
+ */
+function gait(u: number, S: number, H: number) {
+  if (u < 0.5) {
+    const s = u / 0.5;
+    return { x: S * (1 - 2 * s), y: 0 };
+  }
+  const s = (u - 0.5) / 0.5;
+  const e = 0.5 - 0.5 * Math.cos(Math.PI * s);
+  return { x: -S + 2 * S * e, y: -H * Math.sin(Math.PI * s) };
 }
 
 /** 2-bone IK: returns the middle joint. `bend` chooses the side of the bend. */

@@ -56,8 +56,8 @@ const yard: MapDef = {
     T.add(2320, GY - 190, 180, 14, 'wood', { oneway: true });
     // dummy row + lamp post (bright area)
     for (let i = 0; i < 4; i++) g.addDummy(820 + i * 95, GY);
-    g.addEntity(new Lamp(1010, GY - 200, true, 330, [255, 225, 170]));
-    T.add(1006, GY - 200, 8, 200, 'metal');
+    g.addEntity(new Lamp(1165, GY - 200, true, 330, [255, 225, 170]));
+    T.add(1161, GY - 200, 8, 200, 'metal');
     // strawmen
     for (let i = 0; i < 3; i++) g.addStrawman(1230 + i * 95, GY);
     // crate stacks & hay

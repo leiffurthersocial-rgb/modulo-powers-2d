@@ -652,6 +652,7 @@ export class Game {
     // adaptive particle budget (frame time)
     const ms = this.loop.frameMs;
     particles.budget = ms > 24 ? 0.5 : ms > 19 ? 0.75 : 1;
+    if (!this.loop.paused && !this.title) this.renderer.adapt(ms, dt);
     this.renderer.render(this, alpha);
   }
 }

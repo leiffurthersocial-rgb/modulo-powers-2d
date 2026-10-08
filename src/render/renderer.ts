@@ -15,6 +15,16 @@ export class Renderer {
   private vigKey = '';
   /** glow buffer resolution relative to CSS px */
   private glowScale = 0.5;
+  /** backing-store pixel budget; lowered automatically if frames are slow */
+  maxPx = 2_400_000;
+  private slowT = 0;
+
+  /** drop resolution once if the device can't keep up */
+  adapt(frameMs: number, dt: number) {
+    if (this.maxPx <= 1_300_000) return;
+    this.slowT = frameMs > 21 ? this.slowT + dt : Math.max(0, this.slowT - dt);
+    if (this.slowT > 3) { this.maxPx = 1_300_000; this.resize(); }
+  }
 
   constructor(private canvas: HTMLCanvasElement) {
     this.ctx = canvas.getContext('2d', { alpha: false })!;
@@ -29,7 +39,7 @@ export class Renderer {
   resize() {
     const w = window.innerWidth, h = window.innerHeight;
     // cap the backing store so iPads don't push 5M+ pixels through every pass
-    const maxPx = 2_400_000;
+    const maxPx = this.maxPx;
     let dpr = Math.min(window.devicePixelRatio || 1, 2);
     if (w * h * dpr * dpr > maxPx) dpr = Math.sqrt(maxPx / (w * h));
     this.dpr = Math.max(1, dpr);

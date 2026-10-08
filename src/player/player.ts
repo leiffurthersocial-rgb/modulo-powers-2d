@@ -62,7 +62,10 @@ export class Player {
   castT = 0;       // remaining time of cast pose
   castDur = 0.3;
   castCharge = 0;  // 0..1 for hold poses
-  private anim = { phase: 0, lean: 0, crouch: 0, air: 0, landT: 0, hands: [{ x: 8, y: -10 }, { x: -8, y: -10 }], feet: [{ x: 5, y: 0 }, { x: -5, y: 0 }], bob: 0, hitLean: 0 };
+  private anim = { phase: 0, lean: 0, crouch: 0, air: 0, landT: 0, hands: [{ x: 8, y: -10 }, { x: -8, y: -10 }], feet: [{ x: 5, y: 0 }, { x: -5, y: 0 }], bob: 0, hitLean: 0, flipT: 0, flipDir: 1 };
+  /** extra jumps available in the air (double jump) */
+  airJumps = 1;
+  maxAirJumps = 1;
   private stepT = 0;
   private lastVy = 0;
   private aimedByMouse = false;
@@ -224,6 +227,7 @@ export class Player {
     if (jumpPressed) this.jumpBuf = 0.13;
     else this.jumpBuf -= dt;
     if (this.grounded) this.coyote = 0.1; else this.coyote -= dt;
+    if (this.grounded || this.swimming) this.airJumps = this.maxAirJumps;
 
     // crouch & drop-through
     this.crouching = down && this.grounded && !this.swimming;
@@ -270,6 +274,21 @@ export class Player {
           this.anim.landT = 0;
           audio.whoosh(this.x, this.y, 0.15, 0.08, 300, 900);
           G.fx.dust(this.x, this.feetY, 3);
+        } else if (jumpPressed && this.airJumps > 0 && !this.grounded && this.coyote <= 0) {
+          // double jump: a second kick off the air with a front flip
+          this.airJumps--;
+          vy = -640 * (this.armor > 0 ? 0.8 : 1);
+          if (dir !== 0) vx = dir * Math.max(Math.abs(vx), 260);
+          this.jumpBuf = 0;
+          this.jumpCut = false;
+          this.anim.flipT = 0.42;
+          this.anim.flipDir = dir !== 0 ? dir : this.facing;
+          audio.whoosh(this.x, this.y, 0.22, 0.18, 500, 2200);
+          G.fx.ring(this.x, this.feetY, 6, 46, this.aura, 0.3);
+          for (let i = 0; i < 14; i++) {
+            const a = (i / 14) * Math.PI * 2;
+            particles.emit({ kind: PK.Glow, x: this.x + Math.cos(a) * 8, y: this.feetY + Math.sin(a) * 3, vx: Math.cos(a) * 160, vy: Math.abs(Math.sin(a)) * 90 + 40, life: 0.35, size: 4, sizeEnd: 1, color: this.aura, drag: 3 });
+          }
         }
         if (!jumpDown && vy < -200 && !this.jumpCut && !this.rocket && this.noGravity <= 0) {
           vy *= 0.55;
@@ -453,6 +472,8 @@ export class Player {
     }
     else if (this.swimming) a.phase += dt * 5;
     a.bob += dt;
+    if (a.flipT > 0) a.flipT = Math.max(0, a.flipT - dt);
+    if (this.grounded || this.swimming) a.flipT = 0;
     a.hitLean = smooth(a.hitLean, this.hurtFlash > 0.3 ? 1 : 0, 10, dt);
     void dir;
   }
@@ -606,7 +627,27 @@ export class Player {
     const HL = sm(a.hands[0], hL, 0), HR = sm(a.hands[1], hR, 1);
     const elbowL = ik(sh, HL, 15, 15, -f);
     const elbowR = ik(sh, HR, 15, 15, -f);
-    return { head, headR: 8, neck, pelvis, elbowL, handL: HL, elbowR, handR: HR, kneeL, footL: fL, kneeR, footR: fR, toeL, toeR };
+    const J = { head, headR: 8, neck, pelvis, elbowL, handL: HL, elbowR, handR: HR, kneeL, footL: fL, kneeR, footR: fR, toeL, toeR };
+    if (a.flipT > 0) {
+      // front flip around the body centre
+      const k = 1 - a.flipT / 0.42;
+      const ang = (k < 1 ? (1 - Math.pow(1 - k, 2)) : 1) * Math.PI * 2 * a.flipDir;
+      const cx = ox, cy = ip.y - 8;
+      const c = Math.cos(ang), sn = Math.sin(ang);
+      const tuck = Math.sin(k * Math.PI);
+      const rot = (v: Vec, pull = 0) => {
+        const dx = (v.x - cx) * (1 - pull * tuck), dy = (v.y - cy) * (1 - pull * tuck);
+        return { x: cx + dx * c - dy * sn, y: cy + dx * sn + dy * c };
+      };
+      return {
+        ...J,
+        head: rot(head), neck: rot(neck), pelvis: rot(pelvis),
+        elbowL: rot(elbowL, 0.2), handL: rot(HL, 0.35), elbowR: rot(elbowR, 0.2), handR: rot(HR, 0.35),
+        kneeL: rot(kneeL, 0.15), footL: rot(fL, 0.45), kneeR: rot(kneeR, 0.15), footR: rot(fR, 0.45),
+        toeL: rot(toeL, 0.45), toeR: rot(toeR, 0.45),
+      };
+    }
+    return J;
   }
 
   draw(ctx: CanvasRenderingContext2D, alpha: number) {

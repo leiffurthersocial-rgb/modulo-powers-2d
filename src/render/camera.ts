@@ -18,6 +18,8 @@ export class Camera {
   vh = 720;
   scale = 1;
   bounds = { x0: 0, y0: 0, x1: 4000, y1: 1400 };
+  /** fit the whole map on screen (single-screen arenas) */
+  fit = true;
   private t = 0;
 
   /** world units visible vertically at zoom 1 */
@@ -29,6 +31,7 @@ export class Camera {
   }
 
   snap(x: number, y: number) {
+    if (this.fit) return;
     this.x = x;
     this.y = y;
     this.lookX = this.lookY = 0;
@@ -44,6 +47,18 @@ export class Camera {
 
   update(dt: number, tx: number, ty: number, vx: number, vy: number, aimX: number, aimY: number) {
     this.t += dt;
+    if (this.fit) {
+      // single-screen arena: show the whole map, centred, no follow
+      const b = this.bounds;
+      this.zoomPunch = smooth(this.zoomPunch, 0, 6, dt);
+      this.zoom = this.baseZoom * (1 + this.zoomPunch);
+      this.scale = Math.min(this.vw / (b.x1 - b.x0), this.vh / (b.y1 - b.y0)) * this.zoom;
+      this.x = (b.x0 + b.x1) / 2;
+      this.y = (b.y0 + b.y1) / 2;
+      void tx; void ty; void vx; void vy; void aimX; void aimY;
+      this.updateShake(dt);
+      return;
+    }
     // lookahead from velocity and aim
     const lx = clamp(vx * 0.35, -180, 180) + aimX * 60;
     const ly = clamp(vy * 0.12, -60, 120) + aimY * 40;
@@ -64,7 +79,10 @@ export class Camera {
     if (b.y1 - b.y0 > hh * 2) this.y = clamp(this.y, b.y0 + hh, b.y1 - hh);
     else this.y = (b.y0 + b.y1) / 2;
 
-    // shake
+    this.updateShake(dt);
+  }
+
+  private updateShake(dt: number) {
     this.trauma = Math.max(0, this.trauma - dt * 1.4);
     const s = this.trauma * this.trauma;
     const t = this.t * 38;

@@ -22,7 +22,7 @@ Designed for an iPad with a hardware keyboard. Keys use physical positions (`eve
 | Action | Keys |
 |---|---|
 | Move | A / D |
-| Jump | W or Space (hold for a higher jump) |
+| Jump / double jump | W or Space (hold for a higher jump, press again in mid-air for a flipping double jump) |
 | Crouch / drop through wooden & metal platforms | S |
 | Aim | Arrow keys rotate the aim around you. A mouse/trackpad also aims, and a click (or tap) = ability 1 |
 | Ability 1 (always an attack) | J |
@@ -87,9 +87,10 @@ Every power has an attack on **J** plus utility and movement abilities. Energy i
 - Shadow + thick walls: phase into sealed rooms behind them.
 
 ## Maps (N to cycle)
-1. **Training Yard**: open ground, platforms, a row of dummies under a lamp, strawmen, a pool, crate stacks, hay bales, stone blocks, a boulder on a hill and a dark shed. There's also a thick-walled bunker with a dummy inside.
-2. **Industrial Zone**: generators that power doors and lamps, a bright room and a dark room, a thick-walled sealed room, a drop shaft to a flooded lower level, catwalks and breakable walls.
-3. **Ruins / Forest Edge**: flammable trees, a wooden watch tower, a river with floating logs, stone ruins and a dark cave with a tight tunnel.
+Every map is a single-screen arena (1600 × 1000 world units) that the camera fits to your screen, so you always see the whole playground.
+1. **Training Yard**: a thick-walled dark bunker with a dummy inside, a lamp-lit row of dummies, strawmen, a pool with a floating log, platforms, a boulder on a ledge, crates, hay and stone blocks, plus a wandering NPC.
+2. **Industrial Zone**: a generator that opens a door and lights the dark room behind it, a bright room with dummies, a catwalk and a sealed dark tank room behind a thick wall.
+3. **Ruins / Forest Edge**: flammable trees, strawmen, a wooden watch tower, a river, a stone arch with a boulder on top, and a dark cave behind a breakable wall.
 
 ## Tech
 - Vite + TypeScript with no framework. **Matter.js** handles rigid bodies, ragdolls and stacking.
@@ -100,7 +101,7 @@ Every power has an attack on **J** plus utility and movement abilities. Energy i
   - Pooled particles (capped at 2,600, with an adaptive budget).
   - A saturation blend for Phase's desaturated look.
 - Dummies and NPCs are **active ragdolls**. Every limb is a physics body, and PD "muscles" pull them toward an animated pose until a hit knocks them out. Then they flop, and later get back up.
-- The player is a capsule body with acceleration/deceleration, coyote time, jump buffering, variable jump height, step-up assist, one-way platforms and swimming. The skeleton is animated procedurally with 2-bone IK.
+- The player is a capsule body with acceleration/deceleration, coyote time, jump buffering, variable jump height, a double jump with a front flip, step-up assist, one-way platforms and swimming. The skeleton is animated procedurally with 2-bone IK.
 - Audio is built from noise bursts, oscillators and filters, with simple stereo panning and distance falloff. Loops (flamethrower, hum, drone and others) are modulated live.
 
 ## Balancing

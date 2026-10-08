@@ -384,7 +384,7 @@ export class Hud {
     ctx.fillText('press any key', W / 2, H / 2 + big * 1.55);
     ctx.globalAlpha = 0.5;
     ctx.font = `500 12px ${FONT}`;
-    ctx.fillText('A/D move  ·  W jump  ·  J K L I abilities  ·  1–5 powers  ·  G auto-aim  ·  H field guide', W / 2, H - 28);
+    ctx.fillText('A/D move  ·  W jump (x2)  ·  J K L I abilities  ·  1–5 powers  ·  G auto-aim  ·  H field guide', W / 2, H - 28);
     ctx.restore();
   }
 
@@ -431,7 +431,7 @@ export class Hud {
 
   private controlsGrid(ctx: CanvasRenderingContext2D, x: number, y: number, w: number) {
     const groups: [string, [string, string][]][] = [
-      ['MOVE', [['A / D', 'move'], ['W / Space', 'jump (hold = higher)'], ['S', 'crouch / drop through'], ['Arrows', 'aim (mouse aims too)']]],
+      ['MOVE', [['A / D', 'move'], ['W / Space', 'jump · again in air = double jump'], ['S', 'crouch / drop through'], ['Arrows', 'aim (mouse aims too)']]],
       ['POWERS', [['J', 'attack (click / tap)'], ['K  L  I', 'abilities 2 · 3 · 4'], ['1 – 5', 'pick a power'], ['Q / E', 'previous / next'], ['G', 'toggle auto-aim']]],
       ['WORLD', [['R', 'reset map'], ['T', 'reset player'], ['N', 'next map'], ['B', 'spawn dummy at aim']]],
       ['SANDBOX', [['F', 'infinite energy'], ['V', 'slow motion'], ['M', 'mute'], ['P / H', 'pause / field guide']]],

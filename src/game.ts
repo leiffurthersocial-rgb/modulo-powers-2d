@@ -290,8 +290,10 @@ export class Game {
     const spawn = this.map.build(this);
     // world bounds
     const W = this.map.w, H = this.map.h;
-    this.terrain.add(-200, -400, 200, H + 800, 'concrete');
-    this.terrain.add(W, -400, 200, H + 800, 'concrete');
+    const edge = this.map.theme === 'industrial' ? 'concrete' : this.map.theme === 'ruins' ? 'stone' : 'dirt';
+    this.terrain.add(-240, -400, 240, H + 800, edge);
+    this.terrain.add(W, -400, 240, H + 800, edge);
+    this.terrain.add(-240, -260, W + 480, 160, 'concrete'); // ceiling just above the screen
     Composite.add(this.engine.world, this.terrain.bodies());
     this.player = new Player(spawn.x, spawn.y);
     Composite.add(this.engine.world, this.player.body);
@@ -591,7 +593,7 @@ export class Game {
     let gy = this.terrain.groundBelow(x, Math.max(30, t.y - 60));
     if (this.water.depthAt(x, gy - 4) > 0) gy = this.water.poolAt(x, gy - 4)!.y;
     const count = this.entities.filter((e) => e instanceof Stickman && e.role === 'dummy').length;
-    if (count > 22) { this.showToast('Too many dummies (max 22)'); return; }
+    if (count > 12) { this.showToast('Arena is full (max 12 dummies)'); return; }
     const kinds = ['dummy', 'dummy', 'straw'];
     const k = kinds[Math.floor(Math.random() * kinds.length)];
     if (k === 'straw') this.addStrawman(x, gy);
